@@ -36,3 +36,54 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Smoke-test published HTML and CSS
+        shell: bash
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..20}; do
+            if curl -fsSL --retry 2 --retry-delay 1 "$SITE_URL" -o /tmp/chargeweave-index.html; then
+              break
+            fi
+            if [[ "$attempt" == "20" ]]; then
+              echo "Published site did not become reachable: $SITE_URL"
+              exit 1
+            fi
+            sleep 3
+          done
+
+          mapfile -t stylesheets < <(
+            grep -oE 'href="[^"]+\.css"' /tmp/chargeweave-index.html |
+              sed -E 's/^href="|"$//g'
+          )
+
+          if [[ "${#stylesheets[@]}" -lt 1 ]]; then
+            echo "No CSS stylesheets found in published HTML."
+            cat /tmp/chargeweave-index.html
+            exit 1
+          fi
+
+          : > /tmp/chargeweave-all.css
+          for href in "${stylesheets[@]}"; do
+            if [[ "$href" == http://* || "$href" == https://* ]]; then
+              css_url="$href"
+            elif [[ "$href" == /* ]]; then
+              css_url="https://pli-poc.github.io$href"
+            else
+              css_url="${SITE_URL%/}/$href"
+            fi
+
+            echo "Checking stylesheet: $css_url"
+            curl -fsSL --retry 3 --retry-delay 1 "$css_url" -o /tmp/chargeweave-style.css
+            test -s /tmp/chargeweave-style.css
+            cat /tmp/chargeweave-style.css >> /tmp/chargeweave-all.css
+          done
+
+          grep -q '.container{' /tmp/chargeweave-all.css
+          grep -q '.header{' /tmp/chargeweave-all.css
+          grep -q '.hero{' /tmp/chargeweave-all.css
+
+          echo "Published HTML and core ChargeWeave CSS are reachable."
