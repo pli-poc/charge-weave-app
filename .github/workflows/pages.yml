@@ -60,6 +60,9 @@ jobs:
               sed -E 's/^href="|"$//g'
           )
 
+          grep -q 'name="darkreader-lock"' /tmp/chargeweave-index.html
+          grep -q 'name="color-scheme" content="dark"' /tmp/chargeweave-index.html
+
           if [[ "${#stylesheets[@]}" -lt 1 ]]; then
             echo "No CSS stylesheets found in published HTML."
             cat /tmp/chargeweave-index.html
