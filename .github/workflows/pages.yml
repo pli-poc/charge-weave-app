@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -29,13 +30,38 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Upload protected site
+        id: pages_artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
+          name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Wait for the exact uploaded Pages artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          ARTIFACT_ID: ${{ steps.pages_artifact.outputs.artifact_id }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..20}; do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$ARTIFACT_NAME" > "$RUNNER_TEMP/pages-artifacts.json" &&
+              node -e 'const fs=require("node:fs"); const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/pages-artifacts.json")).artifacts; process.exit(a.filter(x=>String(x.id)===process.env.ARTIFACT_ID && x.name===process.env.ARTIFACT_NAME && !x.expired).length===1?0:1)'; then
+              echo "Uploaded Pages artifact is visible."
+              break
+            fi
+            if [[ "$attempt" == "20" ]]; then
+              echo "Pages artifact did not become visible."
+              exit 1
+            fi
+            sleep 3
+          done
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Smoke-test published HTML and CSS
         shell: bash
