@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "repository": "pli-poc/charge-weave",
+  "commit": "49d28467de8d72d5ae9e356ab99804a9004ab0b0",
+  "packages": [
+    "3829580bc854d34a4d6675b7350f4e99cb0fd701dcb35c5d95ffac3d86c5f157",
+    "e21ba666e1890e5c140af6b39a6267498c74c271428b2c909c0b15975e0a5cd4"
+  ],
+  "checks": {
+    "runtime": "passed",
+    "relay": "passed",
+    "console": "passed",
+    "browser": "passed",
+    "protected-build": "passed"
+  },
+  "scope": "website-deployment",
+  "unsupported": [
+    "live-openai",
+    "live-mcp",
+    "production-services"
+  ]
+}
